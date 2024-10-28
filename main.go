@@ -1,82 +1,33 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
-	"net/http"
+	"os"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/TiagoAmaralFerreira/go-echo/config"
+	"github.com/TiagoAmaralFerreira/go-echo/internal/handle"
+	jwt "github.com/TiagoAmaralFerreira/go-echo/internal/middlewares"
+	"github.com/TiagoAmaralFerreira/go-echo/internal/repository"
+	"github.com/TiagoAmaralFerreira/go-echo/internal/service"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
+	db := config.ConnectDB()
+	userRepo := repository.NewUserRepository(db)
+	userService := service.NewUserService(userRepo)
+	userHandler := handle.NewUserHandler(userService)
+
 	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
 
-	// Conexão com o banco de dados MySQL
-	connStr := "root:root@tcp(localhost:3306)/finance" // ajuste a senha e o nome do banco de dados
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		e.Logger.Fatal("Error connecting to the database:", err)
-		return
-	}
-	defer db.Close()
+	secret := os.Getenv("JWT_SECRET")
+	e.POST("/users", userHandler.CreateUser)
+	// e.GET("/users", userHandler.ListUsers, jwt.JWTMiddleware(secret))
+	e.GET("/users/:id", userHandler.GetUser, jwt.JWTMiddleware(secret))
+	// e.PUT("/users/:id", userHandler.UpdateUser, jwt.JWTMiddleware(secret))
+	// e.DELETE("/users/:id", userHandler.DeleteUser, jwt.JWTMiddleware(secret))
 
-	// Testa a conexão com o banco de dados
-	if err := db.Ping(); err != nil {
-		e.Logger.Fatal("Error pinging the database:", err)
-		return
-	}
-	fmt.Println("Successfully connected to the database!")
-
-	// Endpoint para retornar a mensagem de sucesso
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Successfully connected to the database!")
-	})
-
-	// Endpoint para listar usuários
-	e.GET("/users", func(c echo.Context) error {
-		rows, err := db.Query("SELECT * FROM users")
-		if err != nil {
-			return c.String(http.StatusInternalServerError, "Error executing query")
-		}
-		defer rows.Close()
-
-		var users []map[string]interface{}
-		for rows.Next() {
-			var id int
-			var name, email string
-			if err := rows.Scan(&id, &name, &email); err != nil {
-				return c.String(http.StatusInternalServerError, "Error scanning row")
-			}
-			users = append(users, map[string]interface{}{
-				"id":    id,
-				"name":  name,
-				"email": email,
-			})
-		}
-
-		if err := rows.Err(); err != nil {
-			return c.String(http.StatusInternalServerError, "Error iterating over rows")
-		}
-
-		return c.JSON(http.StatusOK, users)
-	})
-
-	e.Logger.Fatal(e.Start(":1323"))
+	e.Logger.Fatal(e.Start(":8080"))
 }
-
-// package main
-
-// import (
-// 	"net/http"
-
-// 	"github.com/labstack/echo/v4"
-// )
-
-// func main() {
-// 	e := echo.New()
-// 	e.GET("/", func(c echo.Context) error {
-// 		return c.String(http.StatusOK, "Hello, World!")
-// 	})
-// 	e.Logger.Fatal(e.Start(":1323"))
-// }
