@@ -23,9 +23,9 @@ func main() {
 	e.Use(middleware.Recover())
 
 	secret := os.Getenv("JWT_SECRET")
-	e.POST("/users", userHandler.CreateUser)
+	e.POST("/users", userHandler.CreateUser, jwt.JWTMiddleware(secret))
 	// e.GET("/users", userHandler.ListUsers, jwt.JWTMiddleware(secret))
-	e.GET("/users/:id", userHandler.GetUser, jwt.JWTMiddleware(secret))
+	// e.GET("/users/:id", userHandler.GetUser, jwt.JWTMiddleware(secret))
 	// e.PUT("/users/:id", userHandler.UpdateUser, jwt.JWTMiddleware(secret))
 	// e.DELETE("/users/:id", userHandler.DeleteUser, jwt.JWTMiddleware(secret))
 
